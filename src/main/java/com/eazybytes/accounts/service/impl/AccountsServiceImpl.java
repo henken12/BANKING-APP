@@ -36,8 +36,6 @@ public class AccountsServiceImpl implements IAccountsService {
             throw new CustomerAlreadyExistsException("customer already registered with a given mobileNumber"+
                     customerDto.getMobileNumber());
         }
-        customer.setCreatedAt(LocalDateTime.now());
-        customer.setCreatedBy("Anonymous");
         Customer savedCustomer = customerRepositery.save(customer);
         accountRepository.save(createdNewAccount(savedCustomer));
 
@@ -58,8 +56,6 @@ public class AccountsServiceImpl implements IAccountsService {
         newAccount.setAccountNumber(randomAccNumber);
         newAccount.setAccountType(AccountsConstants.SAVINGS);
         newAccount.setBranchAddress(AccountsConstants.ADDRESS);
-        newAccount.setCreatedAt(LocalDateTime.now());
-        newAccount.setCreatedBy("Anonymous");
         return newAccount;
     }
 
@@ -81,4 +77,46 @@ public class AccountsServiceImpl implements IAccountsService {
         customerDto.setAccountsDto(AccountMapper.mapToAccountDto(account,new AccountsDto()));
         return customerDto;
     }
+    /**
+     *
+     * @param customerDto- CustomerDto Object
+     * @return boolean indicating if the update of Account details is successful or not
+     */
+    @Override
+    public boolean updateAccount(CustomerDto customerDto) {
+       boolean isUpdated= false;
+       AccountsDto accountsDto = customerDto.getAccountsDto();
+       if(accountsDto != null){
+           Account account = accountRepository.findById(accountsDto.getAccountNumber()).orElseThrow(
+                   ()->new ResourceNotFoundException("Account","AccountNumber",accountsDto.getAccountNumber().toString())
+           );
+           AccountMapper.mapToAccounts(accountsDto,account);
+           account = accountRepository.save(account);
+
+           Long customerId = account.getCustomerId();
+           Customer customer = customerRepositery.findById(customerId).orElseThrow(
+                   ()->new ResourceNotFoundException("customer","customerId",customerId.toString())
+           );
+           CustomerMapper.mapToCustomer(customerDto,customer);
+           customerRepositery.save(customer);
+           isUpdated = true;
+       }
+       return isUpdated;
+    }
+    /**
+     *
+     * @param mobileNumber-Input mobile number
+     * @return boolean indicating if the delete of Account details is successful or not
+     */
+    @Override
+    public boolean deleteAccount(String mobileNumber) {
+        Customer customer = customerRepositery.findByMobileNumber(mobileNumber).orElseThrow(
+                ()->new ResourceNotFoundException("Customer","mobileNumber",mobileNumber)
+        );
+        accountRepository.deleteByCustomerId(customer.getCustomerId());
+        customerRepositery.deleteById(customer.getCustomerId());
+        return true;
+    }
+
+
 }
